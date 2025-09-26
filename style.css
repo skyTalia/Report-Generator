@@ -1,0 +1,224 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #fefefe;
+  padding: 20px;
+  color: #222;
+}
+
+h2 {
+  margin-bottom: 20px;
+}
+
+h3 {
+  margin-top: 5px;
+}
+
+/* Section containers */
+.section {
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 25px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Form area */
+.form-area {
+  margin-bottom: 20px;
+}
+
+select, input, button {
+  margin: 0 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  background: #f5f5f5;
+}
+
+select:disabled {
+  background: #e0e0e0;
+  color: #777;
+}
+
+/* Light blue buttons */
+button {
+  cursor: pointer;
+  background: #cfe8ff;
+  border: 1px solid #99cfff;
+  border-radius: 12px;
+  padding: 6px 12px;
+  transition: background 0.2s ease, border 0.2s ease;
+  margin-bottom: 5px;
+}
+
+button:hover {
+  background: #b5dbff;
+  border: 1px solid #80bbff;
+}
+
+.copy-btn {
+  background: #cfe8ff;
+  border: 1px solid #99cfff;
+  border-radius: 12px;
+  transition: background 0.2s ease, border 0.2s ease;
+  margin-bottom: 5px; 
+  cursor: pointer;
+  padding: 4px 8px;
+  width: 100px;
+}
+
+.clear-btn {
+  padding: 4px 8px;
+  width: 100px;
+  background: #ffcbcb;
+  border: 1px solid #ff9999;
+}
+
+.clear-btn:hover {
+  background: #ffb8b8;
+  border: 1px solid #ff9999;
+}
+
+/* Preview box */
+.preview {
+  margin-top: 20px;
+}
+.preview-box {
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  padding: 10px;
+  margin: 10px 0;
+  min-height: 35px;
+  font-style: italic;
+  border-radius: 10px;
+  width: 50%;
+}
+
+/* Reports */
+.reports {
+  display: flex;
+  gap: 20px;
+}
+
+.report-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.report-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+textarea {
+  width: 70%;
+  height: 180px;
+  margin: 8px 0;
+  border: 1px solid #ccc;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: none;
+}
+
+/* Merge list */
+.merge-list {
+  margin-top: 10px;
+  padding-left: 20px;
+  list-style-type: disc;
+  color: #333;
+}
+
+.merge-list li {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+/* Saved reports */
+.saved-report {
+  display: block;
+  margin: 5px 0;
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.saved-report:hover {
+  text-decoration: underline;
+}
+/* Reports header with button on the right */
+.reports-header {
+  display: flex;
+  justify-content:flex-start;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.saved-report-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;           /* small space between title and delete button */
+  margin: 5px 0;
+}
+
+.saved-report {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.saved-report:hover {
+  text-decoration: underline;
+}
+
+.delete-btn {
+  border-radius: 8px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.delete-btn:hover {
+  background: #ececec;
+  border-color: transparent;
+}
+
+.required {
+  color: red;
+  margin-left: 2px;
+}
+
+.error-msg {
+  color: red;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+#type {
+  margin-left: 33px;
+}
+
+#typeError {
+  margin-left: 85px;
+  margin-bottom: 10px;
+}
+
+#reasonError {
+  margin-left: 390px;
+}
+
+.flash-error {
+  border-color: red !important;
+  animation: flash 0.6s ease-in-out 2;
+}
+
+@keyframes flash {
+  0%, 100% { border-color: #ccc; }
+  50% { border-color: red; }
+}

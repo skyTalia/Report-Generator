@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Data Cleanup Reporter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>Data Cleanup Report Generator</h2>
+
+  <!-- Form Section -->
+  <div class="section">
+    <h3>Form Section</h3>
+    <div class="form-area">
+      Type<span class="required">*</span>
+      <select id="type">
+        <option value="">Select Type</option>
+        <option value="company">Company</option>
+        <option value="study">Study</option>
+      </select>
+      <div id="typeError" class="error-msg"></div>
+      
+
+      Category:
+      <select id="category">
+        <option value="">Select Category</option>
+      </select>
+
+      Action:
+      <select id="action">
+        <option value="">Select Action</option>
+        <option value="edited">Edited</option>
+        <option value="deleted">Deleted</option>
+        <option value="added">Added</option>
+        <option value="merged">Merged</option>
+      </select>
+    </div>
+
+    <div id="dynamicArea" class="dynamic-area"></div>
+
+    <div class="preview">
+      <strong>Live Preview:</strong>
+      <div id="previewBox" class="preview-box">[Preview will appear here]</div>
+      <button id="addToReport">Add to Report</button>
+    </div>
+  </div>
+
+  <!-- Reports Section -->
+  <div class="section">
+    <div class="reports-header">
+      <h3>Reports Section</h3>
+      <button onclick="saveDailyReport()">Save Daily Report</button>
+    </div>
+
+  <div class="reports">
+      <div class="report-section">
+          <label>Detailed Report</label>
+          <textarea id="detailedReport"></textarea>
+          <div class="report-actions">
+              <button class="copy-btn" onclick="copyToClipboard('detailedReport')">📋 Copy</button>
+              <button class="clear-btn" onclick="clearTextarea('detailedReport')">🧹 Clear</button>
+          </div>
+      </div>
+
+      <div class="report-section">
+          <label>Summary Report</label>
+          <textarea id="summaryReport"></textarea>
+          <div class="report-actions">
+            <button class="copy-btn" onclick="copyToClipboard('summaryReport')">📋 Copy</button>
+            <button class="clear-btn" onclick="clearTextarea('summaryReport')">🧹 Clear</button>
+          </div>
+      </div>
+    </div>
+
+  <div id="savedReports" style="margin-top: 15px;">
+    <h4>Saved Reports</h4>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
