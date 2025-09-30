@@ -51,6 +51,7 @@ button {
   padding: 6px 12px;
   transition: background 0.2s ease, border 0.2s ease;
   margin-bottom: 5px;
+  margin-top: 5px;
 }
 
 button:hover {
@@ -69,7 +70,7 @@ button:hover {
   width: 100px;
 }
 
-.clear-btn {
+.clear-btn, #resetEntry {
   padding: 4px 8px;
   width: 100px;
   background: #ffcbcb;
@@ -77,6 +78,11 @@ button:hover {
 }
 
 .clear-btn:hover {
+  background: #ffb8b8;
+  border: 1px solid #ff9999;
+}
+
+#resetEntry:hover {
   background: #ffb8b8;
   border: 1px solid #ff9999;
 }
@@ -198,6 +204,7 @@ textarea {
   color: red;
   font-size: 12px;
   margin-top: 2px;
+  margin-bottom: 3px;
 }
 
 #type {
