@@ -198,6 +198,22 @@ addToReportBtn.addEventListener("click", () => {
     valid = false;
   }
 
+  // Validate Category + Action when only Type is filled
+  if (typeSelect.value && !categorySelect.value && !actionSelect.value) {
+    let catActMsg = document.getElementById("catActMsg");
+    if (!catActMsg) {
+      catActMsg = document.createElement("div");
+      catActMsg.id = "catActMsg";
+      catActMsg.classList.add("error-msg");
+      previewBox.insertAdjacentElement("afterend", catActMsg);
+    }
+    catActMsg.textContent = "⚠️ Add a Category and Action first before adding to report.";
+    valid = false;
+  } else {
+    const catActMsg = document.getElementById("catActMsg");
+    if (catActMsg) catActMsg.remove(); // clear old warning
+  } 
+
   // Validate Reason if Deleted
   if (actionSelect.value === "deleted") {
     const reason = document.getElementById("reason")?.value.trim();
@@ -242,6 +258,23 @@ addToReportBtn.addEventListener("click", () => {
   logEntries.push({ date: today, type, name, category, subCategory, action, details });
 
   const entry = updatePreview();
+  // Check for duplicates
+  if (reportEntries[type].includes(entry)) {
+    let dupMsg = document.getElementById("duplicateMsg");
+    if (!dupMsg) {
+      dupMsg = document.createElement("div");
+      dupMsg.id = "duplicateMsg";
+      dupMsg.classList.add("error-msg");
+      previewBox.insertAdjacentElement("afterend", dupMsg);
+    }
+    dupMsg.textContent = "⚠️ Entry already added.";
+    return; // stop here
+  } else {
+    const dupMsg = document.getElementById("duplicateMsg");
+    if (dupMsg) dupMsg.remove(); // clear old warning
+  }
+
+  // Add if not duplicate
   reportEntries[type].push(entry);
   summaryCounts[type][action] += 1;
   updateReports();
@@ -374,3 +407,19 @@ function clearTextarea(id) {
 typeSelect.addEventListener("change", refreshCategoryDropdown);
 categorySelect.addEventListener("change", renderDynamicFields);
 actionSelect.addEventListener("change", renderDynamicFields);
+
+// Reset Entry button
+document.getElementById("resetEntry").addEventListener("click", () => {
+  typeSelect.value = "";
+  categorySelect.innerHTML = "<option value=''>Select Category</option>";
+  actionSelect.value = "";
+  dynamicArea.innerHTML = "";
+  previewBox.textContent = "[Preview will appear here]";
+  
+  // Clear validation messages
+  document.getElementById("typeError").textContent = "";
+  const reasonError = document.getElementById("reasonError");
+  if (reasonError) reasonError.textContent = "";
+  const catActMsg = document.getElementById("catActMsg");
+  if (catActMsg) catActMsg.textContent = "";
+});
