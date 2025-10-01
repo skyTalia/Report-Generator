@@ -180,61 +180,41 @@ function updatePreview() {
 addToReportBtn.addEventListener("click", () => {
   let valid = true;
 
-  // Reset errors
-  document.getElementById("typeError").textContent = "";
+  // clear any visual flashes from previous tries
   typeSelect.classList.remove("flash-error");
+  categorySelect.classList.remove("flash-error");
+  actionSelect.classList.remove("flash-error");
   const reasonInput = document.getElementById("reason");
-  if (reasonInput) {
-    const reasonError = document.getElementById("reasonError");
-    if (reasonError) reasonError.textContent = "";
-    reasonInput.classList.remove("flash-error");
-  }
+  if (reasonInput) reasonInput.classList.remove("flash-error");
 
-  // Validate Type
+  // --- Validations via toast ---
   if (!typeSelect.value) {
-    const typeError = document.getElementById("typeError");
-    if (typeError) typeError.textContent = "Type is required.";
+    showError("⛔ Type is required.");
     typeSelect.classList.add("flash-error");
     valid = false;
   }
 
-  // Validate Category + Action when only Type is filled
+  // If only Type is selected, require Category + Action
   if (typeSelect.value && !categorySelect.value && !actionSelect.value) {
-    let catActMsg = document.getElementById("catActMsg");
-    if (!catActMsg) {
-      catActMsg = document.createElement("div");
-      catActMsg.id = "catActMsg";
-      catActMsg.classList.add("error-msg");
-      previewBox.insertAdjacentElement("afterend", catActMsg);
-    }
-    catActMsg.textContent = "⚠️ Add a Category and Action first before adding to report.";
+    showError("⛔ Add a Category and Action first before adding to report.");
+    categorySelect.classList.add("flash-error");
+    actionSelect.classList.add("flash-error");
     valid = false;
-  } else {
-    const catActMsg = document.getElementById("catActMsg");
-    if (catActMsg) catActMsg.remove(); // clear old warning
-  } 
+  }
 
-  // Validate Reason if Deleted
+  // If Deleted, require Reason
   if (actionSelect.value === "deleted") {
     const reason = document.getElementById("reason")?.value.trim();
     if (!reason) {
-      let reasonError = document.getElementById("reasonError");
-      if (!reasonError) {
-        const errorDiv = document.createElement("div");
-        errorDiv.id = "reasonError";
-        errorDiv.classList.add("error-msg");
-        document.getElementById("reason").insertAdjacentElement("afterend", errorDiv);
-        reasonError = errorDiv;
-      }
-      reasonError.textContent = "Reason is required.";
-      reasonInput.classList.add("flash-error");
+      showError("⛔ Reason is required.");
+      if (reasonInput) reasonInput.classList.add("flash-error");
       valid = false;
     }
   }
 
-  if (!valid) return; // stop if validation failed
+  if (!valid) return; // stop here if anything failed
 
-  // 🔹 proceed if valid
+  // proceed if valid
   const type = typeSelect.value;
   const action = actionSelect.value;
   const category = categorySelect.value || "N/A";
@@ -248,7 +228,7 @@ addToReportBtn.addEventListener("click", () => {
     const to = document.getElementById("toValue")?.value || "[To]";
     details = `"${from}" → "${to}"`;
   } else if (action === "deleted") {
-    const reason = reasonInput.value || "unspecified";
+    const reason = reasonInput?.value || "unspecified";
     details = `Reason: ${reason}`;
   } else if (action === "merged" && type === "company") {
     const targetCompany = document.getElementById("targetCompany")?.value || "[Target]";
@@ -258,27 +238,18 @@ addToReportBtn.addEventListener("click", () => {
   logEntries.push({ date: today, type, name, category, subCategory, action, details });
 
   const entry = updatePreview();
-  // Check for duplicates
+
+  // duplicate prevention (toast)
   if (reportEntries[type].includes(entry)) {
-    let dupMsg = document.getElementById("duplicateMsg");
-    if (!dupMsg) {
-      dupMsg = document.createElement("div");
-      dupMsg.id = "duplicateMsg";
-      dupMsg.classList.add("error-msg");
-      previewBox.insertAdjacentElement("afterend", dupMsg);
-    }
-    dupMsg.textContent = "⚠️ Entry already added.";
-    return; // stop here
-  } else {
-    const dupMsg = document.getElementById("duplicateMsg");
-    if (dupMsg) dupMsg.remove(); // clear old warning
+    showError("⛔ Entry already added.");
+    return;
   }
 
-  // Add if not duplicate
   reportEntries[type].push(entry);
   summaryCounts[type][action] += 1;
   updateReports();
 });
+
 
 // ---------- Update Reports ----------
 function updateReports() {
@@ -403,6 +374,28 @@ function clearTextarea(id) {
   }
 }
 
+function showError(message) {
+  const container = document.getElementById("notification-container");
+
+  const notif = document.createElement("div");
+  notif.className = "notification error";
+  notif.innerHTML = `
+    <div class="content">
+      <div class="title">Error!</div>
+      <div class="message">${message}</div>
+    </div>
+    <button onclick="this.parentElement.remove()">✖</button>
+  `;
+
+  container.appendChild(notif);
+
+  // Auto fade-out + remove
+  setTimeout(() => {
+    notif.style.animation = "fadeOut 0.5s forwards";
+    setTimeout(() => notif.remove(), 500);
+  }, 4500);
+}
+
 // ---------- Event Listeners ----------
 typeSelect.addEventListener("change", refreshCategoryDropdown);
 categorySelect.addEventListener("change", renderDynamicFields);
@@ -417,7 +410,7 @@ document.getElementById("resetEntry").addEventListener("click", () => {
   previewBox.textContent = "[Preview will appear here]";
   
   // Clear validation messages
-  document.getElementById("typeError").textContent = "";
+  document.getElementById("typeError`").textContent = "";
   const reasonError = document.getElementById("reasonError");
   if (reasonError) reasonError.textContent = "";
   const catActMsg = document.getElementById("catActMsg");
