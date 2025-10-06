@@ -8,7 +8,7 @@ const detailedReport = document.getElementById("detailedReport");
 const summaryReport = document.getElementById("summaryReport");
 
 let reportEntries = { company: [], study: [] };
-let summaryCounts = { company: { edited: 0, deleted: 0, added: 0, merged: 0 }, study: { edited: 0, deleted: 0, added: 0, merged: 0 } };
+let summaryCounts = {company: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 }, study: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 }};
 let mergeCompanies = [];
 let logEntries = [];
 let savedReports = JSON.parse(localStorage.getItem("savedReports") || "[]");
@@ -123,6 +123,16 @@ function renderDynamicFields() {
       
       <ul id="mergeList" class="merge-list"></ul>
     `;
+  } else if (action === "unmerged" && typeSelect.value === "company") {
+    categorySelect.disabled = true;
+    html = `
+      <label>Company 1:</label>
+      <input type="text" id="company1" placeholder="Company 1">
+      <br><br>
+      <label>Company 2:</label>
+      <input type="text" id="company2" placeholder="Company 2">
+    `;
+
   }
 
   dynamicArea.innerHTML = html;
@@ -170,6 +180,10 @@ function updatePreview() {
   } else if (action === "merged" && typeSelect.value === "company") {
     const targetCompany = document.getElementById("targetCompany")?.value || "[Target Company]";
     text = `Companies: ${mergeCompanies.join(", ")} were merged to ${targetCompany}`;
+  } else if (action === "unmerged" && typeSelect.value === "company") {
+    const company1 = document.getElementById("company1")?.value || "[Company 1]";
+    const company2 = document.getElementById("company2")?.value || "[Company 2]";
+    text = `${company1} and ${company2} were unmerged`;
   }
 
   previewBox.textContent = text;
@@ -233,6 +247,10 @@ addToReportBtn.addEventListener("click", () => {
   } else if (action === "merged" && type === "company") {
     const targetCompany = document.getElementById("targetCompany")?.value || "[Target]";
     details = `Merged into ${targetCompany}`;
+  }else if (action === "unmerged" && type === "company") {
+    const company1 = document.getElementById("company1")?.value || "[Company 1]";
+    const company2 = document.getElementById("company2")?.value || "[Company 2]";
+    details = `${company1} and ${company2} were unmerged`;
   }
 
   logEntries.push({ date: today, type, name, category, subCategory, action, details });
@@ -263,12 +281,13 @@ function updateReports() {
   detailedReport.value = detailedText.trim();
 
   let summaryText = "Daily Summary:\n";
-  if (summaryCounts.company.edited || summaryCounts.company.added || summaryCounts.company.deleted || summaryCounts.company.merged) {
+  if (summaryCounts.company.edited || summaryCounts.company.added || summaryCounts.company.deleted || summaryCounts.company.merged || summaryCounts.company.unmerged) {
     summaryText += "Companies:\n";
     if (summaryCounts.company.edited) summaryText += `- ${summaryCounts.company.edited} edited\n`;
     if (summaryCounts.company.deleted) summaryText += `- ${summaryCounts.company.deleted} deleted\n`;
     if (summaryCounts.company.added) summaryText += `- ${summaryCounts.company.added} added\n`;
     if (summaryCounts.company.merged) summaryText += `- ${summaryCounts.company.merged} merged\n`;
+    if (summaryCounts.company.unmerged) summaryText += `- ${summaryCounts.company.unmerged} unmerged\n`;
   }
   if (summaryCounts.study.edited || summaryCounts.study.added || summaryCounts.study.deleted || summaryCounts.study.merged) {
     summaryText += "Studies:\n";
