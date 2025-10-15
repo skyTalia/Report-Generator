@@ -1,3 +1,4 @@
+// ---------- Element References ----------
 const actionSelect = document.getElementById("action");
 const typeSelect = document.getElementById("type");
 const categorySelect = document.getElementById("category");
@@ -7,11 +8,18 @@ const addToReportBtn = document.getElementById("addToReport");
 const detailedReport = document.getElementById("detailedReport");
 const summaryReport = document.getElementById("summaryReport");
 
+// ---------- Data ----------
 let reportEntries = { company: [], study: [] };
-let summaryCounts = {company: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 }, study: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 }};
+let summaryCounts = {
+  company: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 },
+  study: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 }
+};
 let mergeCompanies = [];
 let logEntries = [];
 let savedReports = JSON.parse(localStorage.getItem("savedReports") || "[]");
+let reasonOptions = ["University", "Hospital", "Clinical Research Site"];
+let selectedReasons = [];
+let multiDropdownOpen = false;
 
 // ---------- Load Saved Reports ----------
 window.addEventListener("DOMContentLoaded", () => {
@@ -65,7 +73,7 @@ function getSubCategories(category, type) {
 function refreshCategoryDropdown() {
   const type = typeSelect.value;
   const categories = getCategories(type);
-  categorySelect.innerHTML = "<option value=\"\">Select Category</option>";
+  categorySelect.innerHTML = "<option value=''>Select Category</option>";
   categories.forEach(cat => {
     const option = document.createElement("option");
     option.value = cat.value;
@@ -98,19 +106,46 @@ function renderDynamicFields() {
       <input type="text" id="fromValue" placeholder="From Value"> to 
       <input type="text" id="toValue" placeholder="To Value">
     `;
-  } else if (action === "deleted") {
+  }
+
+  // ---------- Deleted Action ----------
+  else if (action === "deleted") {
+  categorySelect.disabled = true;
+  html = `
+    <div class="deleted-inline">
+      <input type="text" id="name" placeholder="Name"> 
+      <span>was deleted.</span>
+      <label class="reason-label">Reason<span class="required">*</span>:</label>
+      <div class="multi-dropdown inline-dropdown">
+        <div class="multi-select" id="multiSelect">
+          <span id="selectedCount">Select or search reason</span>
+          <span class="arrow">⏷</span>
+        </div>
+        <div class="multi-content" id="multiContent">
+          <input type="text" id="multiSearch" placeholder="Search or add..." oninput="filterMultiOptions()">
+          <div id="multiOptions" class="multi-options"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+    dynamicArea.innerHTML = html;
+    renderMultiOptions();
+
+    // Attach click listener
+    const multiSelect = document.getElementById("multiSelect");
+    if (multiSelect) {
+      multiSelect.addEventListener("click", toggleMultiDropdown);
+    }
+    return; // stop here
+  }
+
+  else if (action === "added") {
     categorySelect.disabled = true;
-    html = `
-      <input type="text" id="name" placeholder="Name"> was deleted (Reason<span class="required">*</span>: 
-      <input type="text" id="reason" placeholder="Reason">)
-      <div id="reasonError" class="error-msg"></div>
-    `;
-  } else if (action === "added") {
-    categorySelect.disabled = true;
-    html = `
-      <input type="text" id="name" placeholder="Name"> was added
-    `;
-  } else if (action === "merged" && typeSelect.value === "company") {
+    html = `<input type="text" id="name" placeholder="Name"> was added`;
+  }
+
+  else if (action === "merged" && typeSelect.value === "company") {
     categorySelect.disabled = true;
     mergeCompanies = [];
     html = `
@@ -120,10 +155,11 @@ function renderDynamicFields() {
       <label>To Merge with:</label>
       <input type="text" id="mergeInput" placeholder="Company to merge">
       <button type="button" class="add-btn" onclick="addMergeCompany()">✚</button>
-      
       <ul id="mergeList" class="merge-list"></ul>
     `;
-  } else if (action === "unmerged" && typeSelect.value === "company") {
+  }
+
+  else if (action === "unmerged" && typeSelect.value === "company") {
     categorySelect.disabled = true;
     html = `
       <label>Company 1:</label>
@@ -132,25 +168,142 @@ function renderDynamicFields() {
       <label>Company 2:</label>
       <input type="text" id="company2" placeholder="Company 2">
     `;
-
   }
 
   dynamicArea.innerHTML = html;
   attachPreviewListeners();
 }
 
-function addMergeCompany() {
-  const mergeInput = document.getElementById("mergeInput");
-  const mergeList = document.getElementById("mergeList");
+// ---------- Multi-dropdown Logic ----------
+function toggleMultiDropdown() {
+  const content = document.getElementById("multiContent");
+  const select = document.getElementById("multiSelect");
+  if (!content || !select) return;
 
-  if (mergeInput.value.trim() !== "") {
-    mergeCompanies.push(mergeInput.value.trim());
-    const li = document.createElement("li");
-    li.textContent = mergeInput.value.trim();
-    mergeList.appendChild(li);
-    mergeInput.value = "";
+  multiDropdownOpen = !multiDropdownOpen;
+  content.style.display = multiDropdownOpen ? "block" : "none";
+
+  // rotate arrow on open
+  if (multiDropdownOpen) {
+    select.classList.add("open");
+    renderMultiOptions();
+    document.getElementById("multiSearch").focus();
+  } else {
+    select.classList.remove("open");
   }
+}
+
+function renderMultiOptions(filtered = reasonOptions) {
+  const list = document.getElementById("multiOptions");
+  if (!list) return;
+  list.innerHTML = "";
+
+  const searchValue = document.getElementById("multiSearch")?.value.trim().toLowerCase() || "";
+
+  // Add new option if not found
+  const searchInput = document.getElementById("multiSearch");
+  const typedValue = searchInput?.value.trim() || "";
+
+  if (
+    typedValue &&
+    !reasonOptions.map(r => r.toLowerCase()).includes(typedValue.toLowerCase())
+  ) {
+    const addItem = document.createElement("div");
+    addItem.className = "multi-option add-new";
+    addItem.textContent = `+ Add "${typedValue}"`; // preserves typed case
+    addItem.onclick = (e) => {
+      e.stopPropagation(); // prevent closing
+      addNewMultiOption(typedValue, false); // false = keep dropdown open
+    };
+    list.appendChild(addItem);
+  }
+
+  // Render checkboxes + remove buttons
+  filtered.forEach(opt => {
+    const div = document.createElement("div");
+    div.className = "multi-option";
+    div.innerHTML = `
+      <label>
+        <input type="checkbox" value="${opt}" ${selectedReasons.includes(opt) ? "checked" : ""}>
+        ${opt}
+      </label>
+      <button class="remove-option" title="Remove ${opt}">✖</button>
+    `;
+
+    div.querySelector("input").addEventListener("change", (e) => {
+      handleMultiSelection(e.target.value, e.target.checked);
+    });
+
+    div.querySelector(".remove-option").addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeReasonOption(opt);
+    });
+
+    list.appendChild(div);
+  });
+}
+
+function addNewMultiOption(value, closeAfterAdd = true) {
+  const searchInput = document.getElementById("multiSearch");
+  const originalText = searchInput?.value.trim() || value;
+
+  // check for duplicates (case-insensitive)
+  const alreadyExists = reasonOptions.some(
+    r => r.toLowerCase() === originalText.toLowerCase()
+  );
+
+  if (!alreadyExists) {
+    // Add with the exact text user typed
+    reasonOptions.unshift(originalText);
+  }
+
+  // auto-select it
+  if (!selectedReasons.includes(originalText)) {
+    selectedReasons.push(originalText);
+  }
+
+  // clear and re-render
+  if (searchInput) searchInput.value = "";
+  renderMultiOptions(reasonOptions);
+  updateMultiSelectedLabel();
   updatePreview();
+
+  // keep dropdown open if requested
+  if (!closeAfterAdd) {
+    const content = document.getElementById("multiContent");
+    content.style.display = "block";
+    multiDropdownOpen = true;
+  }
+}
+
+function handleMultiSelection(value, checked) {
+  if (checked) {
+    if (!selectedReasons.includes(value)) selectedReasons.push(value);
+  } else {
+    selectedReasons = selectedReasons.filter(r => r !== value);
+  }
+  updateMultiSelectedLabel();
+  updatePreview();
+}
+
+function removeReasonOption(value) {
+  reasonOptions = reasonOptions.filter(opt => opt !== value);
+  selectedReasons = selectedReasons.filter(r => r !== value);
+  renderMultiOptions(reasonOptions);
+  updateMultiSelectedLabel();
+  updatePreview();
+}
+
+function updateMultiSelectedLabel() {
+  const label = document.getElementById("selectedCount");
+  if (selectedReasons.length === 0) label.textContent = "Select or search reason";
+  else label.textContent = `${selectedReasons.length} Selected`;
+}
+
+function filterMultiOptions() {
+  const search = document.getElementById("multiSearch").value.toLowerCase();
+  const filtered = reasonOptions.filter(opt => opt.toLowerCase().includes(search));
+  renderMultiOptions(filtered);
 }
 
 // ---------- Live Preview ----------
@@ -171,16 +324,20 @@ function updatePreview() {
   if (action === "edited") {
     const fromValue = document.getElementById("fromValue")?.value || "[From]";
     const toValue = document.getElementById("toValue")?.value || "[To]";
-    text = `${name} [${subCategory}] was edited from \"${fromValue}\" to \"${toValue}\"`;
-  } else if (action === "deleted") {
-    const reason = document.getElementById("reason")?.value || "[Reason]";
-    text = `${name} was deleted (Reason: ${reason})`;
-  } else if (action === "added") {
+    text = `${name} [${subCategory}] was edited from "${fromValue}" to "${toValue}"`;
+  } 
+  else if (action === "deleted") {
+    const reasonsText = selectedReasons.length ? selectedReasons.join(", ") : "[Reason]";
+    text = `${name} was deleted (Reason: ${reasonsText})`;
+  } 
+  else if (action === "added") {
     text = `${name} was added`;
-  } else if (action === "merged" && typeSelect.value === "company") {
+  } 
+  else if (action === "merged" && typeSelect.value === "company") {
     const targetCompany = document.getElementById("targetCompany")?.value || "[Target Company]";
     text = `Companies: ${mergeCompanies.join(", ")} were merged to ${targetCompany}`;
-  } else if (action === "unmerged" && typeSelect.value === "company") {
+  } 
+  else if (action === "unmerged" && typeSelect.value === "company") {
     const company1 = document.getElementById("company1")?.value || "[Company 1]";
     const company2 = document.getElementById("company2")?.value || "[Company 2]";
     text = `${company1} and ${company2} were unmerged`;
@@ -194,21 +351,16 @@ function updatePreview() {
 addToReportBtn.addEventListener("click", () => {
   let valid = true;
 
-  // clear any visual flashes from previous tries
   typeSelect.classList.remove("flash-error");
   categorySelect.classList.remove("flash-error");
   actionSelect.classList.remove("flash-error");
-  const reasonInput = document.getElementById("reason");
-  if (reasonInput) reasonInput.classList.remove("flash-error");
 
-  // --- Validations via toast ---
   if (!typeSelect.value) {
     showError("⛔ Type is required.");
     typeSelect.classList.add("flash-error");
     valid = false;
   }
 
-  // If only Type is selected, require Category + Action
   if (typeSelect.value && !categorySelect.value && !actionSelect.value) {
     showError("⛔ Add a Category and Action first before adding to report.");
     categorySelect.classList.add("flash-error");
@@ -216,19 +368,8 @@ addToReportBtn.addEventListener("click", () => {
     valid = false;
   }
 
-  // If Deleted, require Reason
-  if (actionSelect.value === "deleted") {
-    const reason = document.getElementById("reason")?.value.trim();
-    if (!reason) {
-      showError("⛔ Reason is required.");
-      if (reasonInput) reasonInput.classList.add("flash-error");
-      valid = false;
-    }
-  }
+  if (!valid) return;
 
-  if (!valid) return; // stop here if anything failed
-
-  // proceed if valid
   const type = typeSelect.value;
   const action = actionSelect.value;
   const category = categorySelect.value || "N/A";
@@ -241,23 +382,21 @@ addToReportBtn.addEventListener("click", () => {
     const from = document.getElementById("fromValue")?.value || "[From]";
     const to = document.getElementById("toValue")?.value || "[To]";
     details = `"${from}" → "${to}"`;
-  } else if (action === "deleted") {
-    const reason = reasonInput?.value || "unspecified";
-    details = `Reason: ${reason}`;
-  } else if (action === "merged" && type === "company") {
+  } 
+  else if (action === "deleted") {
+    details = `Reason: ${selectedReasons.join(", ") || "unspecified"}`;
+  } 
+  else if (action === "merged" && type === "company") {
     const targetCompany = document.getElementById("targetCompany")?.value || "[Target]";
     details = `Merged into ${targetCompany}`;
-  }else if (action === "unmerged" && type === "company") {
+  } 
+  else if (action === "unmerged" && type === "company") {
     const company1 = document.getElementById("company1")?.value || "[Company 1]";
     const company2 = document.getElementById("company2")?.value || "[Company 2]";
     details = `${company1} and ${company2} were unmerged`;
   }
 
-  logEntries.push({ date: today, type, name, category, subCategory, action, details });
-
   const entry = updatePreview();
-
-  // duplicate prevention (toast)
   if (reportEntries[type].includes(entry)) {
     showError("⛔ Entry already added.");
     return;
@@ -268,7 +407,6 @@ addToReportBtn.addEventListener("click", () => {
   updateReports();
 });
 
-
 // ---------- Update Reports ----------
 function updateReports() {
   let detailedText = "";
@@ -276,7 +414,7 @@ function updateReports() {
     detailedText += "Companies:\n" + reportEntries.company.join("\n") + "\n\n";
   }
   if (reportEntries.study.length) {
-    detailedText += "Studies:\n" + reportEntries.study.join("\n") + "\n";
+    detailedText += "Studies:\n" + reportEntries.study.join("\n");
   }
   detailedReport.value = detailedText.trim();
 
@@ -289,13 +427,6 @@ function updateReports() {
     if (summaryCounts.company.merged) summaryText += `- ${summaryCounts.company.merged} merged\n`;
     if (summaryCounts.company.unmerged) summaryText += `- ${summaryCounts.company.unmerged} unmerged\n`;
   }
-  if (summaryCounts.study.edited || summaryCounts.study.added || summaryCounts.study.deleted || summaryCounts.study.merged) {
-    summaryText += "Studies:\n";
-    if (summaryCounts.study.edited) summaryText += `- ${summaryCounts.study.edited} edited\n`;
-    if (summaryCounts.study.deleted) summaryText += `- ${summaryCounts.study.deleted} deleted\n`;
-    if (summaryCounts.study.added) summaryText += `- ${summaryCounts.study.added} added\n`;
-    if (summaryCounts.study.merged) summaryText += `- ${summaryCounts.study.merged} merged\n`;
-  }
   summaryReport.value = summaryText.trim();
 }
 
@@ -305,97 +436,11 @@ function saveDailyReport() {
     alert("No report content to save!");
     return;
   }
-
-  const today = new Date().toISOString().split("T")[0];
-
-  let content = "---------------------------------------------------------------------------------------------\n";
-  content += "Date        | Type     | Name           | Category      | Sub-Category   | Action   | Details\n";
-  content += "---------------------------------------------------------------------------------------------\n";
-
-  logEntries.forEach(e => {
-    content += `${e.date}  | ${e.type.padEnd(8)} | ${e.name.padEnd(14)} | ${e.category.padEnd(12)} | ${e.subCategory.padEnd(14)} | ${e.action.padEnd(7)} | ${e.details}\n`;
-  });
-
-  const blob = new Blob([content], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const filename = `report-${today}.txt`;
-
-  savedReports.unshift({ url, filename, label: `${today} Report` });
-  localStorage.setItem("savedReports", JSON.stringify(savedReports));
-
-  renderSavedReports();
-
-  // Reset
-  logEntries = [];
-  reportEntries = { company: [], study: [] };
-  summaryCounts = { company: { edited: 0, deleted: 0, added: 0, merged: 0 }, study: { edited: 0, deleted: 0, added: 0, merged: 0 } };
-
-  detailedReport.value = "";
-  summaryReport.value = "";
-  previewBox.textContent = "[Preview will appear here]";
-  dynamicArea.innerHTML = "";
-}
-
-// ---------- Render Saved Reports ----------
-function renderSavedReports() {
-  const savedReportsContainer = document.getElementById("savedReports");
-  savedReportsContainer.innerHTML = "<h4>Saved Reports</h4>";
-  savedReports.forEach((report, index) => {
-    const container = document.createElement("div");
-    container.classList.add("saved-report-container");
-
-    const link = document.createElement("a");
-    link.href = report.url;
-    link.download = report.filename;
-    link.textContent = report.label;
-    link.classList.add("saved-report");
-
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "❌";
-    delBtn.classList.add("delete-btn");
-    delBtn.onclick = () => deleteReport(index);
-
-    container.appendChild(link);
-    container.appendChild(delBtn);
-    savedReportsContainer.appendChild(container);
-  });
-}
-
-function deleteReport(index) {
-  savedReports.splice(index, 1);
-  localStorage.setItem("savedReports", JSON.stringify(savedReports));
-  renderSavedReports();
 }
 
 // ---------- Utilities ----------
-function copyToClipboard(id) {
-  const el = document.getElementById(id);
-
-  if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
-    el.select();
-    el.setSelectionRange(0, 99999); // for mobile
-    document.execCommand("copy");
-  } else {
-    // fallback for non-inputs
-    const range = document.createRange();
-    range.selectNode(el);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    document.execCommand("copy");
-    window.getSelection().removeAllRanges();
-  }
-}
-
-function clearTextarea(id) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.value = "";
-  }
-}
-
 function showError(message) {
   const container = document.getElementById("notification-container");
-
   const notif = document.createElement("div");
   notif.className = "notification error";
   notif.innerHTML = `
@@ -405,33 +450,30 @@ function showError(message) {
     </div>
     <button onclick="this.parentElement.remove()">✖</button>
   `;
-
   container.appendChild(notif);
-
-  // Auto fade-out + remove
   setTimeout(() => {
     notif.style.animation = "fadeOut 0.5s forwards";
     setTimeout(() => notif.remove(), 500);
   }, 4500);
 }
 
-// ---------- Event Listeners ----------
-typeSelect.addEventListener("change", refreshCategoryDropdown);
-categorySelect.addEventListener("change", renderDynamicFields);
-actionSelect.addEventListener("change", renderDynamicFields);
-
-// Reset Entry button
+// ---------- Reset Button ----------
 document.getElementById("resetEntry").addEventListener("click", () => {
   typeSelect.value = "";
   categorySelect.innerHTML = "<option value=''>Select Category</option>";
   actionSelect.value = "";
   dynamicArea.innerHTML = "";
   previewBox.textContent = "[Preview will appear here]";
-  
-  // Clear validation messages
-  document.getElementById("typeError`").textContent = "";
+
+  const typeError = document.getElementById("typeError");
+  if (typeError) typeError.textContent = "";
   const reasonError = document.getElementById("reasonError");
   if (reasonError) reasonError.textContent = "";
   const catActMsg = document.getElementById("catActMsg");
   if (catActMsg) catActMsg.textContent = "";
 });
+
+// ---------- Event Listeners ----------
+typeSelect.addEventListener("change", refreshCategoryDropdown);
+categorySelect.addEventListener("change", renderDynamicFields);
+actionSelect.addEventListener("change", renderDynamicFields);
