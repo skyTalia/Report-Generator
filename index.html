@@ -134,6 +134,31 @@
     <h4>Saved Reports</h4>
   </div>
 
+  <!-- Firebase Setup -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAgK0q4dANA3VifHBoVsHoHH5En4zBxlrQ",
+      authDomain: "daily-report-app-1c363.firebaseapp.com",
+      projectId: "daily-report-app-1c363",
+      storageBucket: "daily-report-app-1c363.firebasestorage.app",
+      messagingSenderId: "1058565680945",
+      appId: "1:1058565680945:web:3b220de0bb2003e26e0a10",
+      measurementId: "G-VYL5GC4WM6"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Expose Firestore to global scope so script.js can use it
+    window.firestoreDB = db;
+    window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, setDoc };
+  </script>
+
+
   <script src="script.js"></script>
   <div id="notification-container"></div>
 
