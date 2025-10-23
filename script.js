@@ -21,10 +21,81 @@ let reasonOptions = ["University", "Hospital", "Clinical Research Site"];
 let selectedReasons = [];
 let multiDropdownOpen = false;
 
-// ---------- Load Saved Reports ----------
-window.addEventListener("DOMContentLoaded", () => {
-  renderSavedReports();
-});
+// ---------- Load Saved Reports from Firebase ----------
+async function renderSavedReports() {
+  const { collection, getDocs, deleteDoc, doc } = window.firestoreFns;
+  const db = window.firestoreDB;
+  const savedContainer = document.getElementById("savedReports");
+
+  savedContainer.innerHTML = "<h4>Saved Reports</h4>";
+
+  try {
+    const querySnapshot = await getDocs(collection(db, "reports"));
+    if (querySnapshot.empty) {
+      savedContainer.innerHTML += "<p>No saved reports yet.</p>";
+      return;
+    }
+
+    // Convert docs to array for sorting
+    const reports = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+
+    // Sort by timestamp descending (latest first)
+    reports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Render sorted results
+    reports.forEach((data) => {
+      const item = document.createElement("div");
+      item.classList.add("saved-report-container");
+
+      // Format readable time
+      const formattedDate = new Date(data.timestamp).toLocaleString();
+
+      item.innerHTML = `
+        <a href="#" class="saved-report" onclick="loadReport('${data.id}')">
+          ${formattedDate}
+        </a>
+        <button class="delete-btn" onclick="deleteReport('${data.id}')">🗑️</button>
+      `;
+
+      savedContainer.appendChild(item);
+    });
+  } catch (err) {
+    console.error("Error loading reports:", err);
+    showNotif("⚠️ Failed to load reports from Firebase.");
+  }
+}
+
+
+// ---------- Load Individual Report ----------
+async function loadReport(id) {
+  const { doc, getDocs, collection } = window.firestoreFns;
+  const db = window.firestoreDB;
+  const querySnapshot = await getDocs(collection(db, "reports"));
+  const found = querySnapshot.docs.find((d) => d.id === id);
+  if (found) {
+    const data = found.data();
+    document.getElementById("detailedReport").value = data.detailed || "";
+    document.getElementById("summaryReport").value = data.summary || "";
+    showNotif("📄 Report loaded from Firebase!");
+  }
+}
+
+// ---------- Delete Report ----------
+async function deleteReport(id) {
+  const { deleteDoc, doc } = window.firestoreFns;
+  const db = window.firestoreDB;
+  try {
+    await deleteDoc(doc(db, "reports", id));
+    showNotif("🗑️ Report deleted from Firebase!");
+    renderSavedReports();
+  } catch (err) {
+    console.error("Delete failed:", err);
+    showNotif("⚠️ Failed to delete report.");
+  }
+}
 
 // ---------- Dropdown Data ----------
 function getCategories(type) {
@@ -430,13 +501,86 @@ function updateReports() {
   summaryReport.value = summaryText.trim();
 }
 
-// ---------- Save Daily Report ----------
-function saveDailyReport() {
-  if (!logEntries.length) {
-    alert("No report content to save!");
+// ---------- Save Daily Report (Firebase) ----------
+async function saveDailyReport() {
+  const { collection, addDoc } = window.firestoreFns;
+  const db = window.firestoreDB;
+
+  const detailed = document.getElementById("detailedReport").value.trim();
+  const summary = document.getElementById("summaryReport").value.trim();
+
+  if (!detailed && !summary) {
+    showNotif("⚠️ Nothing to save. Add data first.");
     return;
   }
+
+  const reportData = {
+    detailed: detailed.replace(/\n/g, "\n"), // preserve line breaks
+    summary: summary.replace(/\n/g, "\n"),
+    timestamp: new Date().toISOString()
+  };
+
+
+
+  // ---------- Save Daily Report (Firebase) ----------
+  async function saveDailyReport() {
+    const { collection, doc, setDoc } = window.firestoreFns;
+    const db = window.firestoreDB;
+
+    const detailed = document.getElementById("detailedReport").value.trim();
+    const summary = document.getElementById("summaryReport").value.trim();
+
+    if (!detailed && !summary) {
+      showNotif("⚠️ Nothing to save. Add data first.");
+      return;
+    }
+
+    // Create a "Saving..." notification
+    const savingNotif = document.createElement("div");
+    savingNotif.className = "notification info";
+    savingNotif.innerHTML = `
+      <div class="content">
+        <div class="title">💾 Saving Report...</div>
+        <div class="message">Please wait while your report is being uploaded.</div>
+      </div>
+    `;
+    document.getElementById("notification-container").appendChild(savingNotif);
+
+    // Format readable timestamp ID (YYYYMMDD_HHMMSS)
+    const now = new Date();
+    const timestampId = now.toLocaleString().replace(/[\/,: ]/g, "_"); 
+
+    const reportData = {
+      detailed: detailed.replace(/\n/g, "\n"),
+      summary: summary.replace(/\n/g, "\n"),
+      timestamp: now.toISOString()
+    };
+
+    try {
+      const docRef = doc(db, "reports", timestampId);
+      await setDoc(docRef, reportData);
+
+      // Remove "Saving..." notification
+      savingNotif.remove();
+
+      showNotif(`✅ Report saved as "${timestampId}"`);
+      renderSavedReports();
+    } catch (err) {
+      console.error("Error saving report:", err);
+
+      // Update existing notification instead of removing immediately
+      savingNotif.querySelector(".title").textContent = "❌ Failed to save report";
+      savingNotif.querySelector(".message").textContent = "There was a problem saving to Firebase.";
+      savingNotif.style.borderLeftColor = "#d9534f";
+
+      setTimeout(() => savingNotif.remove(), 4000);
+    } 
+  }
+
+  window.saveDailyReport = saveDailyReport;
+
 }
+
 
 // ---------- Utilities ----------
 function showNotif(message) {
@@ -523,3 +667,20 @@ function hideResetModal() {
 typeSelect.addEventListener("change", refreshCategoryDropdown);
 categorySelect.addEventListener("change", renderDynamicFields);
 actionSelect.addEventListener("change", renderDynamicFields);
+
+// ---------- Copy & Clear Buttons ----------
+function copyToClipboard(elementId) {
+  const textarea = document.getElementById(elementId);
+  if (!textarea) return;
+  textarea.select();
+  textarea.setSelectionRange(0, 99999); // for mobile
+  document.execCommand("copy");
+  showNotif("✅ Copied to clipboard!");
+}
+
+function clearTextarea(elementId) {
+  const textarea = document.getElementById(elementId);
+  if (!textarea) return;
+  textarea.value = "";
+  showNotif("🧹 Cleared successfully!");
+}
