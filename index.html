@@ -46,6 +46,63 @@
     </div>
   </div>
 
+  <!-- Quick Tally Section -->
+  <div id="tallySection" class="tally-section">
+    <h3>Quick Tally Counter</h3>
+    <div class="tally-grid">
+      <div class="tally-item">
+        <span>Edited</span>
+        <div class="counter">
+          <button class="minus" onclick="changeTally('edited', -1)">−</button>
+          <span id="count-edited" class="count">0</span>
+          <button class="plus" onclick="changeTally('edited', 1)">+</button>
+        </div>
+      </div>
+
+      <div class="tally-item">
+        <span>Deleted</span>
+        <div class="counter">
+          <button class="minus" onclick="changeTally('deleted', -1)">−</button>
+          <span id="count-deleted" class="count">0</span>
+          <button class="plus" onclick="changeTally('deleted', 1)">+</button>
+        </div>
+      </div>
+
+      <div class="tally-item">
+        <span>Added</span>
+        <div class="counter">
+          <button class="minus" onclick="changeTally('added', -1)">−</button>
+          <span id="count-added" class="count">0</span>
+          <button class="plus" onclick="changeTally('added', 1)">+</button>
+        </div>
+      </div>
+
+      <div class="tally-item">
+        <span>Merged</span>
+        <div class="counter">
+          <button class="minus" onclick="changeTally('merged', -1)">−</button>
+          <span id="count-merged" class="count">0</span>
+          <button class="plus" onclick="changeTally('merged', 1)">+</button>
+        </div>
+      </div>
+
+      <div class="tally-item">
+        <span>Unmerged</span>
+        <div class="counter">
+          <button class="minus" onclick="changeTally('unmerged', -1)">−</button>
+          <span id="count-unmerged" class="count">0</span>
+          <button class="plus" onclick="changeTally('unmerged', 1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tally-actions">
+      <button id="tallyButton" class="tally-btn" onclick="applyTally()">Tally</button>
+      <button id="resetTally" class="tally-reset-btn" onclick="resetTally()">Reset</button>
+    </div>
+  </div>
+
+
   <!-- Reports Section -->
   <div class="section">
     <div class="reports-header">
@@ -79,5 +136,19 @@
 
   <script src="script.js"></script>
   <div id="notification-container"></div>
+
+  <!-- Modern Reset Confirmation Modal -->
+  <div id="resetModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Reset Counters?</h3>
+      <p>This will clear all counters to zero.<br>It will not affect your summary report.</p>
+      <div class="modal-actions">
+        <button class="modal-btn confirm" onclick="performResetTally()">Yes, Reset</button>
+        <button class="modal-btn cancel" onclick="hideResetModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+
 </body>
 </html>
