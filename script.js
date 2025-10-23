@@ -356,13 +356,13 @@ addToReportBtn.addEventListener("click", () => {
   actionSelect.classList.remove("flash-error");
 
   if (!typeSelect.value) {
-    showError("⛔ Type is required.");
+    showNotif("⛔ Type is required.");
     typeSelect.classList.add("flash-error");
     valid = false;
   }
 
   if (typeSelect.value && !categorySelect.value && !actionSelect.value) {
-    showError("⛔ Add a Category and Action first before adding to report.");
+    showNotif("⛔ Add a Category and Action first before adding to report.");
     categorySelect.classList.add("flash-error");
     actionSelect.classList.add("flash-error");
     valid = false;
@@ -398,7 +398,7 @@ addToReportBtn.addEventListener("click", () => {
 
   const entry = updatePreview();
   if (reportEntries[type].includes(entry)) {
-    showError("⛔ Entry already added.");
+    showNotif("⛔ Entry already added.");
     return;
   }
 
@@ -439,13 +439,13 @@ function saveDailyReport() {
 }
 
 // ---------- Utilities ----------
-function showError(message) {
+function showNotif(message) {
   const container = document.getElementById("notification-container");
   const notif = document.createElement("div");
-  notif.className = "notification error";
+  notif.className = "notification info";
   notif.innerHTML = `
     <div class="content">
-      <div class="title">Error!</div>
+      <div class="title">🔔 NOTICE 🔔</div>
       <div class="message">${message}</div>
     </div>
     <button onclick="this.parentElement.remove()">✖</button>
@@ -472,6 +472,52 @@ document.getElementById("resetEntry").addEventListener("click", () => {
   const catActMsg = document.getElementById("catActMsg");
   if (catActMsg) catActMsg.textContent = "";
 });
+
+// ---------- Quick Tally Counters ----------
+let tallyCounts = {
+  edited: 0,
+  deleted: 0,
+  added: 0,
+  merged: 0,
+  unmerged: 0
+};
+
+function changeTally(action, delta) {
+  tallyCounts[action] = Math.max(0, tallyCounts[action] + delta); // prevent negative
+  document.getElementById(`count-${action}`).textContent = tallyCounts[action];
+}
+
+function applyTally() {
+  // Reflect tallies into the summaryCounts, no reset
+  Object.keys(tallyCounts).forEach(action => {
+    summaryCounts.company[action] += tallyCounts[action];
+  });
+  updateReports();
+  showNotif("✅ Tally added to summary report!");
+}
+
+function resetTally() {
+  showResetModal();
+}
+
+function performResetTally() {
+  Object.keys(tallyCounts).forEach(action => {
+    tallyCounts[action] = 0;
+    document.getElementById(`count-${action}`).textContent = 0;
+  });
+  hideResetModal();
+  showNotif("🔄 Counters have been reset.");
+}
+
+// ---------- Modern Reset Modal ----------
+function showResetModal() {
+  document.getElementById("resetModal").style.display = "flex";
+}
+
+function hideResetModal() {
+  document.getElementById("resetModal").style.display = "none";
+}
+
 
 // ---------- Event Listeners ----------
 typeSelect.addEventListener("change", refreshCategoryDropdown);
