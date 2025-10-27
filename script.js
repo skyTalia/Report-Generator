@@ -21,47 +21,56 @@ let reasonOptions = ["University", "Hospital", "Clinical Research Site"];
 let selectedReasons = [];
 let multiDropdownOpen = false;
 
-// ---------- Load Saved Reports from Firebase ----------
+// ---------- Load Saved Reports from Firebase (always visible + sorted) ----------
 async function renderSavedReports() {
   const { collection, getDocs, deleteDoc, doc } = window.firestoreFns;
   const db = window.firestoreDB;
   const savedContainer = document.getElementById("savedReports");
 
+  // Keep the header, don’t wipe out the container
   savedContainer.innerHTML = "<h4>Saved Reports</h4>";
 
   try {
     const querySnapshot = await getDocs(collection(db, "reports"));
+
+    // If empty, still show the section but with message
     if (querySnapshot.empty) {
-      savedContainer.innerHTML += "<p>No saved reports yet.</p>";
+      savedContainer.innerHTML += "<p style='color:#777; font-size:14px;'>No saved reports yet.</p>";
       return;
     }
 
     // Convert docs to array for sorting
     const reports = querySnapshot.docs.map((docSnap) => ({
       id: docSnap.id,
-      ...docSnap.data()
+      ...docSnap.data(),
     }));
 
     // Sort by timestamp descending (latest first)
     reports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     // Render sorted results
+    const listWrapper = document.createElement("div");
+    listWrapper.classList.add("saved-report-list");
+
     reports.forEach((data) => {
       const item = document.createElement("div");
       item.classList.add("saved-report-container");
 
-      // Format readable time
       const formattedDate = new Date(data.timestamp).toLocaleString();
+      const timerDisplay = data.timer ? `⏱ ${data.timer.formattedTime}` : "";
 
       item.innerHTML = `
         <a href="#" class="saved-report" onclick="loadReport('${data.id}')">
           ${formattedDate}
         </a>
+        <span class="timer-tag">${timerDisplay}</span>
         <button class="delete-btn" onclick="deleteReport('${data.id}')">🗑️</button>
       `;
 
-      savedContainer.appendChild(item);
+      listWrapper.appendChild(item);
     });
+
+    savedContainer.appendChild(listWrapper);
   } catch (err) {
     console.error("Error loading reports:", err);
     showNotif("⚠️ Failed to load reports from Firebase.");
@@ -69,19 +78,43 @@ async function renderSavedReports() {
 }
 
 
-// ---------- Load Individual Report ----------
+
+// ---------- Load Individual Report (includes Timer) ----------
 async function loadReport(id) {
-  const { doc, getDocs, collection } = window.firestoreFns;
+  const { getDocs, collection } = window.firestoreFns;
   const db = window.firestoreDB;
   const querySnapshot = await getDocs(collection(db, "reports"));
   const found = querySnapshot.docs.find((d) => d.id === id);
-  if (found) {
-    const data = found.data();
-    document.getElementById("detailedReport").value = data.detailed || "";
-    document.getElementById("summaryReport").value = data.summary || "";
-    showNotif("📄 Report loaded from Firebase!");
+  if (!found) return;
+
+  const data = found.data();
+  document.getElementById("detailedReport").value = data.detailed || "";
+  document.getElementById("summaryReport").value = data.summary || "";
+  showNotif("📄 Report loaded from Firebase!");
+
+  // Restore timer if exists
+  if (data.timer) {
+    elapsedSeconds = data.timer.elapsedSeconds || 0;
+    isPaused = data.timer.isPaused || false;
+
+    updateTimerDisplay();
+
+    // Stop existing interval before restoring
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+
+    // Resume only if not paused
+    if (!isPaused) {
+      timerInterval = setInterval(() => {
+        elapsedSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    pauseBtn.textContent = isPaused ? "▶️ Resume" : "⏸️ Pause";
   }
 }
+
 
 // ---------- Delete Report ----------
 async function deleteReport(id) {
@@ -244,6 +277,50 @@ function renderDynamicFields() {
   dynamicArea.innerHTML = html;
   attachPreviewListeners();
 }
+
+// ---------- Merge Companies Logic ----------
+function addMergeCompany() {
+  const mergeInput = document.getElementById("mergeInput");
+  const mergeList = document.getElementById("mergeList");
+  const companyToAdd = mergeInput.value.trim();
+
+  if (!companyToAdd) {
+    showNotif("⚠️ Please enter a company name to merge.");
+    return;
+  }
+
+  // Prevent duplicate entries
+  if (mergeCompanies.includes(companyToAdd)) {
+    showNotif("⚠️ This company is already in the merge list.");
+    mergeInput.value = "";
+    return;
+  }
+
+  // Add to list and refresh display
+  mergeCompanies.push(companyToAdd);
+  mergeInput.value = "";
+
+  const listItem = document.createElement("li");
+  listItem.textContent = companyToAdd;
+
+  // Add a small remove button for convenience
+  const removeBtn = document.createElement("button");
+  removeBtn.textContent = "✖";
+  removeBtn.className = "remove-option";
+  removeBtn.title = "Remove this company";
+  removeBtn.style.marginLeft = "6px";
+  removeBtn.addEventListener("click", () => {
+    mergeCompanies = mergeCompanies.filter(c => c !== companyToAdd);
+    listItem.remove();
+  });
+
+  listItem.appendChild(removeBtn);
+  mergeList.appendChild(listItem);
+
+  // Update the live preview
+  updatePreview();
+}
+
 
 // ---------- Multi-dropdown Logic ----------
 function toggleMultiDropdown() {
@@ -501,9 +578,95 @@ function updateReports() {
   summaryReport.value = summaryText.trim();
 }
 
-// ---------- Save Daily Report (Firebase) ----------
+// ---------- Work Timer (Emoji UI + Persistence) ----------
+let timerInterval;
+let elapsedSeconds = 0;
+let isPaused = true;
+
+const timerDisplay = document.getElementById("timer-display");
+const toggleBtn = document.getElementById("toggleTimer");
+const resetBtn = document.getElementById("resetTimer");
+
+function formatTime(sec) {
+  const hrs = String(Math.floor(sec / 3600)).padStart(2, "0");
+  const mins = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+  const secs = String(sec % 60).padStart(2, "0");
+  return `${hrs}:${mins}:${secs}`;
+}
+
+function updateTimerDisplay() {
+  timerDisplay.textContent = formatTime(elapsedSeconds);
+  document.title = `⏱️ ${formatTime(elapsedSeconds)} - Data Cleanup Report Generator`;
+
+  localStorage.setItem(
+    "workTimer",
+    JSON.stringify({ elapsedSeconds, isPaused, lastUpdated: Date.now() })
+  );
+}
+
+function toggleTimer() {
+  if (isPaused) {
+    // start
+    isPaused = false;
+    toggleBtn.textContent = "❚❚";
+    timerInterval = setInterval(() => {
+      if (!isPaused) {
+        elapsedSeconds++;
+        updateTimerDisplay();
+      }
+    }, 1000);
+  } else {
+    // pause
+    isPaused = true;
+    toggleBtn.textContent = "▸";
+    clearInterval(timerInterval);
+  }
+  updateTimerDisplay();
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  elapsedSeconds = 0;
+  isPaused = true;
+  toggleBtn.textContent = "▸";
+  updateTimerDisplay();
+  document.title = "Data Cleanup Report Generator";
+  localStorage.removeItem("workTimer");
+}
+
+// ---------- Restore from LocalStorage ----------
+function restoreTimer() {
+  const saved = JSON.parse(localStorage.getItem("workTimer"));
+  if (!saved) return;
+
+  elapsedSeconds = saved.elapsedSeconds || 0;
+  isPaused = saved.isPaused ?? true;
+
+  if (!isPaused && saved.lastUpdated) {
+    const diff = Math.floor((Date.now() - saved.lastUpdated) / 1000);
+    elapsedSeconds += diff;
+
+    timerInterval = setInterval(() => {
+      elapsedSeconds++;
+      updateTimerDisplay();
+    }, 1000);
+  }
+
+  toggleBtn.textContent = isPaused ? "▸" : "❚❚";
+  updateTimerDisplay();
+}
+
+toggleBtn.addEventListener("click", toggleTimer);
+resetBtn.addEventListener("click", resetTimer);
+
+restoreTimer();
+
+
+
+// ---------- Save Daily Report (Firebase + Timer + Auto Reset) ----------
 async function saveDailyReport() {
-  const { collection, addDoc } = window.firestoreFns;
+  const { collection, doc, setDoc } = window.firestoreFns;
   const db = window.firestoreDB;
 
   const detailed = document.getElementById("detailedReport").value.trim();
@@ -514,72 +677,56 @@ async function saveDailyReport() {
     return;
   }
 
-  const reportData = {
-    detailed: detailed.replace(/\n/g, "\n"), // preserve line breaks
-    summary: summary.replace(/\n/g, "\n"),
-    timestamp: new Date().toISOString()
+  // Create "Saving..." notification
+  const savingNotif = document.createElement("div");
+  savingNotif.className = "notification info saving";
+  savingNotif.innerHTML = `
+    <div class="content">
+      <div class="title">💾 Saving Report...</div>
+      <div class="message">Please wait while your report is being uploaded.</div>
+    </div>
+  `;
+  document.getElementById("notification-container").appendChild(savingNotif);
+
+  // Format readable timestamp ID (YYYYMMDD_HHMMSS)
+  const now = new Date();
+  const timestampId = now.toISOString().replace(/[-:T.Z]/g, "").slice(0, 15);
+
+  // Save timer data
+  const timerData = {
+    elapsedSeconds,
+    formattedTime: formatTime(elapsedSeconds),
+    isPaused,
   };
 
+  const reportData = {
+    detailed: detailed.replace(/\n/g, "\n"),
+    summary: summary.replace(/\n/g, "\n"),
+    timer: timerData,
+    timestamp: now.toISOString(),
+  };
 
+  try {
+    const docRef = doc(db, "reports", timestampId);
+    await setDoc(docRef, reportData);
 
-  // ---------- Save Daily Report (Firebase) ----------
-  async function saveDailyReport() {
-    const { collection, doc, setDoc } = window.firestoreFns;
-    const db = window.firestoreDB;
+    savingNotif.remove();
+    showNotif(`✅ Report saved as "${timestampId}" (Timer: ${timerData.formattedTime})`);
 
-    const detailed = document.getElementById("detailedReport").value.trim();
-    const summary = document.getElementById("summaryReport").value.trim();
+    // Refresh saved reports
+    renderSavedReports();
 
-    if (!detailed && !summary) {
-      showNotif("⚠️ Nothing to save. Add data first.");
-      return;
-    }
-
-    // Create a "Saving..." notification
-    const savingNotif = document.createElement("div");
-    savingNotif.className = "notification info";
-    savingNotif.innerHTML = `
-      <div class="content">
-        <div class="title">💾 Saving Report...</div>
-        <div class="message">Please wait while your report is being uploaded.</div>
-      </div>
-    `;
-    document.getElementById("notification-container").appendChild(savingNotif);
-
-    // Format readable timestamp ID (YYYYMMDD_HHMMSS)
-    const now = new Date();
-    const timestampId = now.toLocaleString().replace(/[\/,: ]/g, "_"); 
-
-    const reportData = {
-      detailed: detailed.replace(/\n/g, "\n"),
-      summary: summary.replace(/\n/g, "\n"),
-      timestamp: now.toISOString()
-    };
-
-    try {
-      const docRef = doc(db, "reports", timestampId);
-      await setDoc(docRef, reportData);
-
-      // Remove "Saving..." notification
-      savingNotif.remove();
-
-      showNotif(`✅ Report saved as "${timestampId}"`);
-      renderSavedReports();
-    } catch (err) {
-      console.error("Error saving report:", err);
-
-      // Update existing notification instead of removing immediately
-      savingNotif.querySelector(".title").textContent = "❌ Failed to save report";
-      savingNotif.querySelector(".message").textContent = "There was a problem saving to Firebase.";
-      savingNotif.style.borderLeftColor = "#d9534f";
-
-      setTimeout(() => savingNotif.remove(), 4000);
-    } 
+    // 🔁 Reset the timer after save
+    stopTimer();
+  } catch (err) {
+    console.error("Error saving report:", err);
+    savingNotif.querySelector(".title").textContent = "❌ Failed to save report";
+    savingNotif.querySelector(".message").textContent = "There was a problem saving to Firebase.";
+    savingNotif.style.borderLeftColor = "#d9534f";
+    setTimeout(() => savingNotif.remove(), 4000);
   }
-
-  window.saveDailyReport = saveDailyReport;
-
 }
+
 
 
 // ---------- Utilities ----------
@@ -684,3 +831,11 @@ function clearTextarea(elementId) {
   textarea.value = "";
   showNotif("🧹 Cleared successfully!");
 }
+
+// ---------- Auto-load Saved Reports on Page Load ----------
+window.addEventListener("DOMContentLoaded", () => {
+  renderSavedReports();
+});
+
+// ---------- Expose function globally so HTML can call it ----------
+window.saveDailyReport = saveDailyReport;
