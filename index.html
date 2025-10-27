@@ -6,7 +6,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>Data Cleanup Report Generator</h2>
+  <div class="page-header">
+    <h2>Data Cleanup Report Generator</h2>
+    <button id="newReportBtn" class="new-report-btn">+ New Report</button>
+  </div>
+
   <div id="timer-container">
     <span id="timer-display">00:00:00</span>
     <div class="timer-buttons">
@@ -146,7 +150,7 @@
   <!-- Firebase Setup -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAgK0q4dANA3VifHBoVsHoHH5En4zBxlrQ",
@@ -164,7 +168,7 @@
 
     // Expose Firestore to global scope so script.js can use it
     window.firestoreDB = db;
-    window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, setDoc };
+    window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, setDoc, onSnapshot };
   </script>
 
 
