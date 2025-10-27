@@ -726,4 +726,50 @@ textarea {
   transform: translateY(1px);
 }
 
+/* ---------- Page Header with New Report Button ---------- */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* ---------- Page Header Layout ---------- */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding-right: 700px; /* create breathing space for timer on right */
+  position: relative;
+  z-index: 5; /* keep above background elements */
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #1e3556;
+  font-weight: 700;
+}
+
+/* ---------- + New Report Button ---------- */
+.new-report-btn {
+  background: #eaf5ff;
+  border: 1px solid #b6dafc;
+  color: #1e5fb3;
+  border-radius: 10px;
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Lexend', sans-serif;
+  height: fit-content;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.new-report-btn:hover {
+  background: #d4eaff;
+  border-color: #7bb4f7;
+  transform: translateY(-1px);
+}
 
