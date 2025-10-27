@@ -21,41 +21,39 @@ let reasonOptions = ["University", "Hospital", "Clinical Research Site"];
 let selectedReasons = [];
 let multiDropdownOpen = false;
 
-// ---------- Load Saved Reports from Firebase (always visible + sorted) ----------
-async function renderSavedReports() {
-  const { collection, getDocs, deleteDoc, doc } = window.firestoreFns;
+// ---------- Real-time Saved Reports from Firebase ----------
+function renderSavedReports() {
+  const { collection, onSnapshot, deleteDoc, doc } = window.firestoreFns;
   const db = window.firestoreDB;
   const savedContainer = document.getElementById("savedReports");
 
-  // Keep the header, don’t wipe out the container
   savedContainer.innerHTML = "<h4>Saved Reports</h4>";
 
-  try {
-    const querySnapshot = await getDocs(collection(db, "reports"));
+  const reportsRef = collection(db, "reports");
 
-    // If empty, still show the section but with message
-    if (querySnapshot.empty) {
+  // Listen for real-time updates
+  onSnapshot(reportsRef, (snapshot) => {
+    // Clear current display
+    savedContainer.innerHTML = "<h4>Saved Reports</h4>";
+
+    if (snapshot.empty) {
       savedContainer.innerHTML += "<p style='color:#777; font-size:14px;'>No saved reports yet.</p>";
       return;
     }
 
-    // Convert docs to array for sorting
-    const reports = querySnapshot.docs.map((docSnap) => ({
+    // Map data + sort by timestamp descending
+    const reports = snapshot.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data(),
     }));
-
-    // Sort by timestamp descending (latest first)
     reports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // Render sorted results
     const listWrapper = document.createElement("div");
     listWrapper.classList.add("saved-report-list");
 
     reports.forEach((data) => {
       const item = document.createElement("div");
       item.classList.add("saved-report-container");
-
       const formattedDate = new Date(data.timestamp).toLocaleString();
       const timerDisplay = data.timer ? `⏱ ${data.timer.formattedTime}` : "";
 
@@ -66,53 +64,65 @@ async function renderSavedReports() {
         <span class="timer-tag">${timerDisplay}</span>
         <button class="delete-btn" onclick="deleteReport('${data.id}')">🗑️</button>
       `;
-
       listWrapper.appendChild(item);
     });
 
     savedContainer.appendChild(listWrapper);
-  } catch (err) {
-    console.error("Error loading reports:", err);
-    showNotif("⚠️ Failed to load reports from Firebase.");
-  }
+  });
 }
 
 
+// ---------- Load Individual Report (Full Real-time Sync for Timer) ----------
+let activeReportUnsub = null;
 
-// ---------- Load Individual Report (includes Timer) ----------
-async function loadReport(id) {
-  const { getDocs, collection } = window.firestoreFns;
+function loadReport(id) {
+  const { doc, onSnapshot } = window.firestoreFns;
   const db = window.firestoreDB;
-  const querySnapshot = await getDocs(collection(db, "reports"));
-  const found = querySnapshot.docs.find((d) => d.id === id);
-  if (!found) return;
+  const docRef = doc(db, "reports", id);
 
-  const data = found.data();
-  document.getElementById("detailedReport").value = data.detailed || "";
-  document.getElementById("summaryReport").value = data.summary || "";
-  showNotif("📄 Report loaded from Firebase!");
+  // Detach previous listener
+  if (activeReportUnsub) activeReportUnsub();
 
-  // Restore timer if exists
-  if (data.timer) {
-    elapsedSeconds = data.timer.elapsedSeconds || 0;
-    isPaused = data.timer.isPaused || false;
+  // Attach Firestore live listener
+  activeReportUnsub = onSnapshot(docRef, (docSnap) => {
+    if (!docSnap.exists()) return;
+    const data = docSnap.data();
 
-    updateTimerDisplay();
+    // Update text areas (these work already)
+    detailedReport.value = data.detailed || "";
+    summaryReport.value = data.summary || "";
 
-    // Stop existing interval before restoring
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = null;
+    // --- 🔄 Real-time Timer Update ---
+    if (data.timer) {
+      const newSeconds = data.timer.elapsedSeconds || 0;
+      const newPaused = data.timer.isPaused ?? true;
 
-    // Resume only if not paused
-    if (!isPaused) {
-      timerInterval = setInterval(() => {
-        elapsedSeconds++;
-        updateTimerDisplay();
-      }, 1000);
+      // Update the same global variables the UI timer uses
+      elapsedSeconds = newSeconds;
+      isPaused = newPaused;
+      isSyncedWithFirebase = true;
+
+      // Stop old interval before syncing
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+
+      // Immediately reflect changes in main timer display
+      updateTimerDisplay("firebase");
+
+      // Resume ticking only if not paused
+      if (!isPaused) {
+        timerInterval = setInterval(() => {
+          elapsedSeconds++;
+          updateTimerDisplay("firebase");
+        }, 1000);
+      }
+
+      // Update play/pause emoji
+      toggleBtn.textContent = isPaused ? "▸" : "❚❚";
     }
-
-    pauseBtn.textContent = isPaused ? "▶️ Resume" : "⏸️ Pause";
-  }
+  }, (error) => {
+    console.error("❌ Live update error:", error);
+  });
 }
 
 
@@ -582,6 +592,7 @@ function updateReports() {
 let timerInterval;
 let elapsedSeconds = 0;
 let isPaused = true;
+let isSyncedWithFirebase = false; // NEW flag
 
 const timerDisplay = document.getElementById("timer-display");
 const toggleBtn = document.getElementById("toggleTimer");
@@ -594,15 +605,19 @@ function formatTime(sec) {
   return `${hrs}:${mins}:${secs}`;
 }
 
-function updateTimerDisplay() {
+function updateTimerDisplay(source = "local") {
   timerDisplay.textContent = formatTime(elapsedSeconds);
   document.title = `⏱️ ${formatTime(elapsedSeconds)} - Data Cleanup Report Generator`;
 
-  localStorage.setItem(
-    "workTimer",
-    JSON.stringify({ elapsedSeconds, isPaused, lastUpdated: Date.now() })
-  );
+  // Only update localStorage if not coming from Firebase
+  if (source !== "firebase") {
+    localStorage.setItem(
+      "workTimer",
+      JSON.stringify({ elapsedSeconds, isPaused, lastUpdated: Date.now() })
+    );
+  }
 }
+
 
 function toggleTimer() {
   if (isPaused) {
@@ -637,6 +652,9 @@ function resetTimer() {
 
 // ---------- Restore from LocalStorage ----------
 function restoreTimer() {
+  // Skip restoring if currently synced with Firebase
+  if (isSyncedWithFirebase) return;
+  
   const saved = JSON.parse(localStorage.getItem("workTimer"));
   if (!saved) return;
 
@@ -809,11 +827,59 @@ function hideResetModal() {
   document.getElementById("resetModal").style.display = "none";
 }
 
+// ---------- Reset All (New Report) ----------
+function resetAllData() {
+  // Reset selects and dynamic inputs
+  typeSelect.value = "";
+  categorySelect.innerHTML = "<option value=''>Select Category</option>";
+  actionSelect.value = "";
+  dynamicArea.innerHTML = "";
+  previewBox.textContent = "[Preview will appear here]";
+
+  // Clear detailed and summary text areas
+  detailedReport.value = "";
+  summaryReport.value = "";
+
+  // Reset tallies
+  Object.keys(tallyCounts).forEach(action => {
+    tallyCounts[action] = 0;
+    const countEl = document.getElementById(`count-${action}`);
+    if (countEl) countEl.textContent = "0";
+  });
+
+  // Reset summary counts
+  summaryCounts = {
+    company: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 },
+    study: { edited: 0, deleted: 0, added: 0, merged: 0, unmerged: 0 }
+  };
+
+  // Reset report entries
+  reportEntries = { company: [], study: [] };
+
+  // Reset selected reasons and dropdown states
+  selectedReasons = [];
+  multiDropdownOpen = false;
+
+  // Reset merge companies list
+  mergeCompanies = [];
+  const mergeList = document.getElementById("mergeList");
+  if (mergeList) mergeList.innerHTML = "";
+
+  // Reset timer
+  resetTimer();
+
+  // Notify user
+  showNotif("🆕 All fields have been reset. Ready for a new report!");
+}
+
+
 
 // ---------- Event Listeners ----------
 typeSelect.addEventListener("change", refreshCategoryDropdown);
 categorySelect.addEventListener("change", renderDynamicFields);
 actionSelect.addEventListener("change", renderDynamicFields);
+document.getElementById("newReportBtn").addEventListener("click", resetAllData);
+
 
 // ---------- Copy & Clear Buttons ----------
 function copyToClipboard(elementId) {
