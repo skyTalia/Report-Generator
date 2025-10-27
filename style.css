@@ -20,6 +20,7 @@ h3 {
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 25px;
+  margin-top: 35px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -168,8 +169,33 @@ textarea {
 .saved-report-container {
   display: flex;
   align-items: center;
-  gap: 10px;           /* small space between title and delete button */
-  margin: 5px 0;
+  justify-content: space-between;
+  background: #f8f9fc;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: background 0.2s;
+}
+
+.saved-report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.saved-report-container:hover {
+  background: #eef4ff;
+}
+
+.timer-tag {
+  font-size: 13px;
+  color: #254878;
+  margin-right: 8px;
+  font-weight: 500;
 }
 
 .saved-report {
@@ -647,3 +673,57 @@ textarea {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* ---------- Larger Emoji Timer ---------- */
+#timer-container {
+  position: absolute;
+  top: 25px;
+  right: 40px;
+  background: #ffffff;
+  border: 1px solid #d9e0ea;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  text-align: center;
+  font-family: 'Lexend', sans-serif;
+}
+
+#timer-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: #254878;
+  display: block;
+  text-align: center;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.timer-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.timer-buttons button {
+  border: none;
+  background: #f3f6ff;
+  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+  cursor: pointer;
+  color: #254878;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.timer-buttons button:hover {
+  background: #dce8ff;
+  transform: translateY(-1px);
+}
+
+.timer-buttons button:active {
+  transform: translateY(1px);
+}
+
+
